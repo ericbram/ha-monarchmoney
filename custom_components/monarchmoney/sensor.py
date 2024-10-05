@@ -85,6 +85,7 @@ async def async_setup_entry(
     sensors.append(MonarchMoneyCashFlowSensor(coordinator, unique_id))
     sensors.append(MonarchMoneyIncomeSensor(coordinator, unique_id))
     sensors.append(MonarchMoneyExpenseSensor(coordinator, unique_id))
+    sensors.append(MonarchMoneyHouseFundSensor(coordinator, unique_id))
 
     async_add_entities(sensors, True)
 
@@ -189,6 +190,92 @@ class MonarchMoneyCategorySensor(CoordinatorEntity, SensorEntity):
             via_device=(DOMAIN, self._id),
         )
 
+
+class MonarchMoneyHouseFundSensor(CoordinatorEntity, SensorEntity):
+    """Representation of a monarchmoney.com custom sensor."""
+
+    def __init__(self, coordinator, unique_id) -> None:
+        """Pass coordinator to CoordinatorEntity."""
+        super().__init__(coordinator)
+        self._state = None
+        self._assets = None
+        self._name = "Monarch House Fund"
+        self._id = unique_id
+        self._attr_native_unit_of_measurement = "USD"
+        self._attr_icon = "mdi:chart-donut"
+        self._attr_device_class = SensorDeviceClass.MONETARY
+        self._attr_state_class = SensorStateClass.TOTAL
+
+    @property
+    def unique_id(self) -> str:
+        return self._name.lower()
+
+    @property
+    def native_value(self):
+        return self._state
+
+    @callback
+    def _handle_coordinator_update(self) -> None:
+        """Handle updated data from the coordinator."""
+        def _isHouseFound(account):
+            # Save all custom assets
+            if account["type"]["name"] == 'other_asset':
+                return True
+            # Save all brokerage (non retirement)
+            if account["type"]["name"] == 'brokerage' and account["subtype"]["name"] == 'brokerage':
+                return True
+            # Save all Crypto
+            if account["type"]["name"] == 'brokerage' and account["subtype"]["name"] == 'cryptocurrency':
+                return True
+            return False
+
+        update_data = self.coordinator.data
+        accounts = update_data.get("accounts")
+        active_accounts = [
+            account for account in accounts if account["includeInNetWorth"] is True and account["isHidden"] is False
+        ]
+        house_accounts = [
+            account for account in active_accounts if _isHouseFound(account)
+        ]
+
+        asset_accounts = [
+            account
+            for account in house_accounts
+            if account["isAsset"] is True
+            # and account["type"]["name"] in ASSET_ACCOUNT_TYPES
+        ]
+
+        asset_accounts_sum = round(
+            sum(asset_account["displayBalance"] for asset_account in asset_accounts)
+        )
+
+        self._state = asset_accounts_sum
+        self._assets = asset_accounts_sum
+        self.async_write_ha_state()
+
+    @property
+    def extra_state_attributes(self):
+        """Return the state attributes of the sensor."""
+        attributes = {"assets": self._assets}
+        return attributes
+
+    @property
+    def name(self):
+        """Return the name of the sensor."""
+        return self._name
+
+    @property
+    def device_info(self) -> DeviceInfo:
+        """Return the device info."""
+        return DeviceInfo(
+            identifiers={
+                # Serial numbers are unique identifiers within a specific domain
+                (DOMAIN, self._id)
+            },
+            name=self._id,
+            manufacturer=DOMAIN,
+            via_device=(DOMAIN, self._id),
+        )
 
 class MonarchMoneyNetWorthSensor(CoordinatorEntity, SensorEntity):
     """Representation of a monarchmoney.com net worth sensor."""
