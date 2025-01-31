@@ -13,9 +13,9 @@
   "issue_tracker": "https://github.com/ericbram/ha-monarchmoney/issues",
   "quality_scale": "silver",
   "requirements": [
-    "monarchmoney==0.1.13"
+    "monarchmoney==0.1.15"
   ],
   "ssdp": [],
-  "version": "0.0.1",
+  "version": "0.0.2",
   "zeroconf": []
 }
