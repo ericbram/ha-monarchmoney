@@ -58,7 +58,7 @@ class MonarchCoordinator(DataUpdateCoordinator):
         _LOGGER.debug("Forwarding setup to platforms")
         for component in PLATFORMS:
             self.hass.async_create_task(
-                self.hass.config_entries.async_forward_entry_setup(
+                self.hass.config_entries.async_forward_entry_setups(
                     self._config_entry, component
                 )
             )
